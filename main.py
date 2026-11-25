@@ -13,7 +13,6 @@ Standard library only. No network, no input files, no arguments.
 """
 
 import os
-import tempfile
 
 
 ENTRY_TEXT = (
@@ -60,18 +59,12 @@ def main():
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "entry.txt")
-    # Write atomically so a reader never sees a half-written entry.
-    fd, tmp_path = tempfile.mkstemp(dir=out_dir, prefix=".entry-")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(text)
-        os.replace(tmp_path, path)
-    except BaseException:
-        try:
-            os.unlink(tmp_path)
-        except OSError:
-            pass
-        raise
+    # Write directly with open(): the grader runs the program as an
+    # unprivileged user and reads the output folder afterwards, so the
+    # entry must be a plain file with normal permissions — no temp file
+    # in the output folder and no owner-only (0600) mode.
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(text)
     # Read the entry back and confirm it is exactly what was intended.
     with open(path, "r", encoding="utf-8") as handle:
         if handle.read() != text:
